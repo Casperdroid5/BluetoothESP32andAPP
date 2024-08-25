@@ -1,54 +1,33 @@
 #include <ESP32Servo.h>
 #include "BluetoothSerial.h"
 
-// Maak aparte servo-objecten aan
-Servo servo1;
-Servo servo2;
-Servo servo3;
-Servo servo4;
-Servo servo5;
-Servo servo6;
+// Aantal servo motoren
+const int numServos = 6;
 
-BluetoothSerial SerialBT; // Maak een BluetoothSerial object
+// Servo-objecten en pinconfiguraties
+Servo servos[numServos];
+const int servoPins[numServos] = {12, 10, 25, 26, 33, 32};
 
-const int ledPin = 2; // LED verbonden met GPIO2 (pas aan naar je eigen setup)
+// BluetoothSerial object maken
+BluetoothSerial SerialBT;
 
-// Pin configuratie voor de servo's (pas deze aan naar je eigen setup)
-const int servoPin1 = 12;
-const int servoPin2 = 10;
-const int servoPin3 = 25;
-const int servoPin4 = 26;
-const int servoPin5 = 33;
-const int servoPin6 = 32;
+// LED pin
+const int ledPin = 2;
 
 void setup() {
-  Serial.begin(115200); // Start USB serial communicatie voor debugging
-  SerialBT.begin("ESP32_BT"); // Start Bluetooth met de naam ESP32_BT
+  Serial.begin(115200);            // Start USB serial communicatie voor debugging
+  SerialBT.begin("ESP32_BT");      // Start Bluetooth met de naam ESP32_BT
 
-  // Koppel servo motoren aan de pinnen
-  servo1.attach(servoPin1);
-  servo2.attach(servoPin2);
-  servo3.attach(servoPin3);
-  servo4.attach(servoPin4);
-  servo5.attach(servoPin5);
-  servo6.attach(servoPin6);
-
-  // Zet elke servo op een beginpositie
-  servo1.write(75);
-  servo2.write(75);
-  servo3.write(75);
-  servo4.write(75);
-  servo5.write(75);
-  servo6.write(75);
-
-  pinMode(ledPin, OUTPUT); // Stel de ledPin in als output
+  // Koppel servo motoren aan de pinnen en stel een beginpositie in
+  initializeServos();
+  
+  pinMode(ledPin, OUTPUT);         // Stel de LED pin in als output
   Serial.println("ESP32 Bluetooth Multiple Servo & LED Control Ready.");
 }
 
 void loop() {
-  if (SerialBT.available()) { // Controleer of er data beschikbaar is via Bluetooth
+  if (SerialBT.available()) {      // Controleer of er data beschikbaar is via Bluetooth
     String data = SerialBT.readStringUntil('\n'); // Lees de data als een string
-
     Serial.print("Received data: ");
     Serial.println(data);
 
@@ -57,28 +36,36 @@ void loop() {
   }
 }
 
-// Verwerk de ontvangen data en stuur de servo's aan
+// Koppel de servo motoren aan de pinnen en stel een beginpositie in
+void initializeServos() {
+  for (int i = 0; i < numServos; i++) {
+    servos[i].attach(servoPins[i]);
+    servos[i].write(75);           // Zet elke servo op een beginpositie
+  }
+  delay(500);                      // Wacht om ervoor te zorgen dat alle servo's naar hun beginpositie bewegen
+}
+
+// Verwerkt de ontvangen data en stuurt de servo's aan
 void processData(String data) {
-  // Verwijder de vierkante haken en extra spaties
+  // Verwijder vierkante haken en spaties
   data.trim();
   if (data.startsWith("[") && data.endsWith("]")) {
     data = data.substring(1, data.length() - 1);
   }
 
+  // Verwerk elk segment van de ontvangen data
   int startIndex = 0;
   int separatorIndex = data.indexOf("][");
 
   while (separatorIndex != -1) {
-    // Verkrijg elk commando
     String segment = data.substring(startIndex, separatorIndex);
     handleServoCommand(segment);
 
-    // Verwijder het verwerkte segment en update de startIndex
     startIndex = separatorIndex + 2;
     separatorIndex = data.indexOf("][", startIndex);
   }
 
-  // Verwerk het laatste segment (of enige resterende data)
+  // Verwerk het laatste segment
   if (startIndex < data.length()) {
     String lastSegment = data.substring(startIndex);
     handleServoCommand(lastSegment);
@@ -87,7 +74,6 @@ void processData(String data) {
 
 // Verwerkt individuele servo-opdrachten
 void handleServoCommand(String command) {
-  // Verwijder de extra aanhalingstekens en spaties
   command.trim();
   command.replace("\"", "");
 
@@ -97,15 +83,14 @@ void handleServoCommand(String command) {
     int servoIndex = command.substring(0, separatorIndex).toInt(); // Lees de servo index
     int angle = command.substring(separatorIndex + 1).toInt(); // Lees de hoek
 
-    Serial.print("Servo Index: ");
-    Serial.println(servoIndex);
-    Serial.print("Angle: ");
-    Serial.println(angle);
+    // Serial.print("Servo Index: ");
+    // Serial.println(servoIndex);
+    // Serial.print("Angle: ");
+    // Serial.println(angle);
 
-    // Controleer of de servo index en hoek binnen de verwachte waarden liggen
-    if (servoIndex >= 1 && servoIndex <= 6 && angle >= 0 && angle <= 180) {
-      // Verplaats de juiste servo naar de opgegeven hoek
-      setServoAngle(servoIndex, angle); // Gebruik de functie om de servo-stand in te stellen
+    // Verplaats de juiste servo naar de opgegeven hoek
+    if (servoIndex >= 1 && servoIndex <= numServos && angle >= 0 && angle <= 180) {
+      setServoAngle(servoIndex, angle);
     } else {
       Serial.println("Invalid Servo Index or Angle");
     }
@@ -114,35 +99,12 @@ void handleServoCommand(String command) {
   }
 }
 
-// Functie om de servo op een specifieke hoek te zetten
+// Zet de servo op een specifieke hoek
 void setServoAngle(int servoIndex, int angle) {
-  switch (servoIndex) {
-    case 1:
-      servo1.write(angle);
-      Serial.println("Servo 1 Angle: " + String(angle));
-      break;
-    case 2:
-      servo2.write(angle);
-      Serial.println("Servo 2 Angle: " + String(angle));
-      break;
-    case 3:
-      servo3.write(angle);
-      Serial.println("Servo 3 Angle: " + String(angle));
-      break;
-    case 4:
-      servo4.write(angle);
-      Serial.println("Servo 4 Angle: " + String(angle));
-      break;
-    case 5:
-      servo5.write(angle);
-      Serial.println("Servo 5 Angle: " + String(angle));
-      break;
-    case 6:
-      servo6.write(angle);
-      Serial.println("Servo 6 Angle: " + String(angle));
-      break;
-    default:
-      Serial.println("Invalid Servo Index");
-      break;
+  if (servoIndex >= 1 && servoIndex <= numServos) {
+    servos[servoIndex - 1].write(angle); // Servo index is 1-based, array index is 0-based
+    Serial.println("Servo " + String(servoIndex) + " Angle: " + String(angle));
+  } else {
+    Serial.println("Invalid Servo Index");
   }
 }
