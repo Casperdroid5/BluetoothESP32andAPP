@@ -1,110 +1,117 @@
 #include <ESP32Servo.h>
 #include "BluetoothSerial.h"
 
-// Aantal servo motoren
+// Number of servo motors
 const int numServos = 6;
 
-// Servo-objecten en pinconfiguraties
+// Servo objects and pin configurations
 Servo servos[numServos];
 const int servoPins[numServos] = {12, 10, 25, 26, 33, 32};
 
-// BluetoothSerial object maken
+// BluetoothSerial object
 BluetoothSerial SerialBT;
 
 // LED pin
 const int ledPin = 2;
 
 void setup() {
-  Serial.begin(115200);            // Start USB serial communicatie voor debugging
-  SerialBT.begin("ESP32_BT");      // Start Bluetooth met de naam ESP32_BT
+  Serial.begin(115200);            // Start USB serial communication for debugging
+  SerialBT.begin("ESP32_BT_6DOF-Arm");      // Start Bluetooth with the name ESP32_BT
 
-  // Koppel servo motoren aan de pinnen en stel een beginpositie in
+  // Attach servos to their pins and set initial positions
   initializeServos();
   
-  pinMode(ledPin, OUTPUT);         // Stel de LED pin in als output
-  Serial.println("ESP32 Bluetooth Multiple Servo & LED Control Ready.");
+  pinMode(ledPin, OUTPUT);         // Set LED pin as output
+  Serial.println("ESP32 Ready");
 }
 
 void loop() {
-  if (SerialBT.available()) {      // Controleer of er data beschikbaar is via Bluetooth
-    String data = SerialBT.readStringUntil('\n'); // Lees de data als een string
+  if (SerialBT.available()) {      // Check if data is available via Bluetooth
+    String data = SerialBT.readStringUntil('\n'); // Read the data as a string
     Serial.print("Received data: ");
     Serial.println(data);
 
-    // Verwerk de ontvangen data
+    // Process the received data
     processData(data);
   }
 }
 
-// Koppel de servo motoren aan de pinnen en stel een beginpositie in
+// Attach the servo motors to their pins and set initial positions
 void initializeServos() {
   for (int i = 0; i < numServos; i++) {
     servos[i].attach(servoPins[i]);
-    servos[i].write(75);           // Zet elke servo op een beginpositie
+    servos[i].write(75);           // Set each servo to an initial position
   }
-  delay(500);                      // Wacht om ervoor te zorgen dat alle servo's naar hun beginpositie bewegen
+  delay(500);                      // Wait to ensure all servos move to their initial position
 }
 
-// Verwerkt de ontvangen data en stuurt de servo's aan
+// Process the received data and control the servos or LED
 void processData(String data) {
-  // Verwijder vierkante haken en spaties
   data.trim();
   if (data.startsWith("[") && data.endsWith("]")) {
     data = data.substring(1, data.length() - 1);
   }
 
-  // Verwerk elk segment van de ontvangen data
   int startIndex = 0;
   int separatorIndex = data.indexOf("][");
 
   while (separatorIndex != -1) {
     String segment = data.substring(startIndex, separatorIndex);
-    handleServoCommand(segment);
+    handleCommand(segment);
 
     startIndex = separatorIndex + 2;
     separatorIndex = data.indexOf("][", startIndex);
   }
 
-  // Verwerk het laatste segment
   if (startIndex < data.length()) {
     String lastSegment = data.substring(startIndex);
-    handleServoCommand(lastSegment);
+    handleCommand(lastSegment);
   }
 }
 
-// Verwerkt individuele servo-opdrachten
-void handleServoCommand(String command) {
+// Handles individual commands for servo and LED
+void handleCommand(String command) {
   command.trim();
-  command.replace("\"", "");
+  command.replace("\"", ""); // Remove quotes
 
   int separatorIndex = command.indexOf(',');
 
   if (separatorIndex != -1) {
-    int servoIndex = command.substring(0, separatorIndex).toInt(); // Lees de servo index
-    int angle = command.substring(separatorIndex + 1).toInt(); // Lees de hoek
+    String commandType = command.substring(0, separatorIndex); // e.g., "LED" or "1"
+    String value = command.substring(separatorIndex + 1); // e.g., "1" or "0"
 
-    // Serial.print("Servo Index: ");
-    // Serial.println(servoIndex);
-    // Serial.print("Angle: ");
-    // Serial.println(angle);
-
-    // Verplaats de juiste servo naar de opgegeven hoek
-    if (servoIndex >= 1 && servoIndex <= numServos && angle >= 0 && angle <= 180) {
-      setServoAngle(servoIndex, angle);
+    if (commandType == "LED") {
+      int ledValue = value.toInt(); // Convert string to integer
+      if (ledValue == 1) {
+        digitalWrite(ledPin, HIGH);
+        Serial.println("LED ON");
+      } else if (ledValue == 0) {
+        digitalWrite(ledPin, LOW);
+        Serial.println("LED OFF");
+      } else {
+        Serial.println("Invalid LED Command Value: " + value);
+      }
     } else {
-      Serial.println("Invalid Servo Index or Angle");
+      int servoIndex = commandType.toInt();
+      int angle = value.toInt();
+
+      if (servoIndex >= 1 && servoIndex <= numServos && angle >= 0 && angle <= 180) {
+        setServoAngle(servoIndex, angle);
+      } else {
+        Serial.println("Invalid Servo Index or Angle: " + command);
+      }
     }
   } else {
-    Serial.println("Invalid Command Format");
+    Serial.println("Invalid Command Format: " + command);
   }
 }
 
-// Zet de servo op een specifieke hoek
+// Set the servo to a specific angle
 void setServoAngle(int servoIndex, int angle) {
   if (servoIndex >= 1 && servoIndex <= numServos) {
     servos[servoIndex - 1].write(angle); // Servo index is 1-based, array index is 0-based
     Serial.println("Servo " + String(servoIndex) + " Angle: " + String(angle));
   } else {
-    Serial.println("Invalid Servo Index");
+    Serial.println("Invalid Servo Index: " + String(servoIndex));
   }
 }
