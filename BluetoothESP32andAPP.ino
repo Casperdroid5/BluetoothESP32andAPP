@@ -1,29 +1,45 @@
 #include <ESP32Servo.h>
 #include "BluetoothSerial.h"
 
-// Aantal servo motoren
-const int numServos = 6; // We hebben nu 6 servo motoren
-
-// Maak servo-objecten aan
-Servo servos[numServos]; // Array om 6 servo-objecten op te slaan
+// Maak aparte servo-objecten aan
+Servo servo1;
+Servo servo2;
+Servo servo3;
+Servo servo4;
+Servo servo5;
+Servo servo6;
 
 BluetoothSerial SerialBT; // Maak een BluetoothSerial object
 
 const int ledPin = 2; // LED verbonden met GPIO2 (pas aan naar je eigen setup)
 
 // Pin configuratie voor de servo's (pas deze aan naar je eigen setup)
-const int servoPins[numServos] = {32, 33, 25, 26, 27, 14}; // Servo pinnen, pas deze aan zoals nodig
+const int servoPin1 = 12;
+const int servoPin2 = 10;
+const int servoPin3 = 25;
+const int servoPin4 = 26;
+const int servoPin5 = 33;
+const int servoPin6 = 32;
 
 void setup() {
   Serial.begin(115200); // Start USB serial communicatie voor debugging
   SerialBT.begin("ESP32_BT"); // Start Bluetooth met de naam ESP32_BT
 
   // Koppel servo motoren aan de pinnen
-  for (int i = 0; i < numServos; i++) {
-    servos[i].attach(servoPins[i]);
-    servos[i].write(75); // Zet elke servo op een tussenpositie
-    delay(500); // Laat de servo tijd om naar de beginpositie te bewegen
-  }
+  servo1.attach(servoPin1);
+  servo2.attach(servoPin2);
+  servo3.attach(servoPin3);
+  servo4.attach(servoPin4);
+  servo5.attach(servoPin5);
+  servo6.attach(servoPin6);
+
+  // Zet elke servo op een beginpositie
+  servo1.write(75);
+  servo2.write(75);
+  servo3.write(75);
+  servo4.write(75);
+  servo5.write(75);
+  servo6.write(75);
 
   pinMode(ledPin, OUTPUT); // Stel de ledPin in als output
   Serial.println("ESP32 Bluetooth Multiple Servo & LED Control Ready.");
@@ -87,7 +103,7 @@ void handleServoCommand(String command) {
     Serial.println(angle);
 
     // Controleer of de servo index en hoek binnen de verwachte waarden liggen
-    if (servoIndex >= 1 && servoIndex <= numServos && angle >= 0 && angle <= 180) {
+    if (servoIndex >= 1 && servoIndex <= 6 && angle >= 0 && angle <= 180) {
       // Verplaats de juiste servo naar de opgegeven hoek
       setServoAngle(servoIndex, angle); // Gebruik de functie om de servo-stand in te stellen
     } else {
@@ -100,8 +116,33 @@ void handleServoCommand(String command) {
 
 // Functie om de servo op een specifieke hoek te zetten
 void setServoAngle(int servoIndex, int angle) {
-  if (servoIndex >= 1 && servoIndex <= numServos) {
-    servos[servoIndex - 1].write(angle); // Servo index is 1-based, array index is 0-based
-    Serial.println("Servo " + String(servoIndex) + " Angle: " + String(angle));
+  switch (servoIndex) {
+    case 1:
+      servo1.write(angle);
+      Serial.println("Servo 1 Angle: " + String(angle));
+      break;
+    case 2:
+      servo2.write(angle);
+      Serial.println("Servo 2 Angle: " + String(angle));
+      break;
+    case 3:
+      servo3.write(angle);
+      Serial.println("Servo 3 Angle: " + String(angle));
+      break;
+    case 4:
+      servo4.write(angle);
+      Serial.println("Servo 4 Angle: " + String(angle));
+      break;
+    case 5:
+      servo5.write(angle);
+      Serial.println("Servo 5 Angle: " + String(angle));
+      break;
+    case 6:
+      servo6.write(angle);
+      Serial.println("Servo 6 Angle: " + String(angle));
+      break;
+    default:
+      Serial.println("Invalid Servo Index");
+      break;
   }
 }
