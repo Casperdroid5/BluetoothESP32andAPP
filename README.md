@@ -1,6 +1,6 @@
-# ESP32 Bluetooth Controlled 6DOF Robotic Arm
+# Remote Controlled 6DOF Robotic Arm 
 
-This project allows you to control a 6 Degrees of Freedom (6DOF) robotic arm using an ESP32 microcontroller via Bluetooth. The robotic arm can be wirelessly controlled from a mobile application built with MIT App Inventor.
+This project allows you to control a 6 Degrees of Freedom (6DOF) robotic arm using an ESP32 microcontroller via Bluetooth an a android APP. The robotic arm can be wirelessly controlled from a mobile application built with MIT App Inventor.
 
 ## Features
 
