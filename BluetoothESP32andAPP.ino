@@ -177,64 +177,76 @@ void savePositions() {
 void runSavedPositions() {
     Serial.println("Running saved positions...");
 
-    for (int i = 0; i < servoIndex; i++) {
-        for (int j = 0; j < numServos; j++) {
-            // Check for PAUSE or RESET command before moving each servo
-            if (SerialBT.available()) {
-                String incomingCommand = SerialBT.readString();
-                incomingCommand.trim();
-                Serial.println("Received command: " + incomingCommand);
+    int currentIndex = 0; // Track the current step index
 
-                if (incomingCommand.equalsIgnoreCase("(PAUSE)")) {
-                    pauseRunning = true;
-                    Serial.println("Execution paused.");
-                } else if (incomingCommand.equalsIgnoreCase("(RESET)")) {
-                    resetPositions();
-                    Serial.println("Execution reset.");
-                    return;  // Exit the function to stop further execution
-                }
-            }
-
-            // If pause is triggered, stop execution
-            while (pauseRunning) {
+    while (true) { // Infinite loop
+        for (int i = currentIndex; i < servoIndex; i++) {
+            for (int j = 0; j < numServos; j++) {
+                // Check for PAUSE or RESET command before moving each servo
                 if (SerialBT.available()) {
                     String incomingCommand = SerialBT.readString();
                     incomingCommand.trim();
-                    Serial.println("Received during pause: " + incomingCommand);
+                    Serial.println("Received command: " + incomingCommand);
 
-                    if (incomingCommand.equalsIgnoreCase("(RUN)")) {
-                        pauseRunning = false;
-                        Serial.println("Resuming execution.");
+                    if (incomingCommand.equalsIgnoreCase("(PAUSE)")) {
+                        pauseRunning = true;
+                        Serial.println("Execution paused.");
                     } else if (incomingCommand.equalsIgnoreCase("(RESET)")) {
                         resetPositions();
                         Serial.println("Execution reset.");
                         return;  // Exit the function to stop further execution
                     }
                 }
-                delay(100);  // Small delay to prevent tight loop
+
+                // If pause is triggered, stop execution
+                while (pauseRunning) {
+                    if (SerialBT.available()) {
+                        String incomingCommand = SerialBT.readString();
+                        incomingCommand.trim();
+                        Serial.println("Received during pause: " + incomingCommand);
+
+                        if (incomingCommand.equalsIgnoreCase("(RUN)")) {
+                            pauseRunning = false;
+                            Serial.println("Resuming execution.");
+                        } else if (incomingCommand.equalsIgnoreCase("(RESET)")) {
+                            resetPositions();
+                            Serial.println("Execution reset.");
+                            return;  // Exit the function to stop further execution
+                        }
+                    }
+                    delay(100);  // Small delay to prevent tight loop
+                }
+
+                // Move the servo if not paused
+                if (!pauseRunning) {
+                    Serial.print("Running Servo ");
+                    Serial.print(j + 1);
+                    Serial.print(" to Position: ");
+                    Serial.println(servoSP[j][i]);
+                    servos[j].write(servoSP[j][i]);
+                    delay(speedDelay);
+                }
             }
 
-            // Move the servo if not paused
-            if (!pauseRunning) {
-                Serial.print("Running Servo ");
-                Serial.print(j + 1);
-                Serial.print(" to Position: ");
-                Serial.println(servoSP[j][i]);
-                servos[j].write(servoSP[j][i]);
-                delay(speedDelay);
+            // Check again after all servos have been moved in the step
+            if (pauseRunning || !SerialBT.hasClient()) {
+                currentIndex = i;  // Save current position before pausing
+                break;  // Exit the loop if paused or Bluetooth connection lost
             }
+
+            delay(1000);  // Optional: Add delay between steps to observe movement
         }
 
-        // Check again after all servos have been moved in the step
+        // Reset the currentIndex to 0 to repeat the sequence indefinitely
+        currentIndex = 0;
+
+        // Check for reset after completing one cycle
         if (pauseRunning || !SerialBT.hasClient()) {
             break;  // Exit the loop if paused or Bluetooth connection lost
         }
-
-        delay(1000);  // Optional: Add delay between steps to observe movement
     }
-
-    Serial.println("Completed running saved positions.");
 }
+
 
 
 
