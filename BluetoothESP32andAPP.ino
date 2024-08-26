@@ -40,22 +40,26 @@ void setup() {
         delay(100);  // Check every 100ms
     }
     Serial.println("Device paired successfully!");
-    digitalWrite(ledPin, HIGH);
+    pinMode(ledPin, OUTPUT);  // Set LED pin as output
+
 
     // Attach servos to their pins and set initial positions
     initializeServos();
     
-    pinMode(ledPin, OUTPUT);  // Set LED pin as output
+
 }
 
 void loop() {
     if (SerialBT.available()) {  // Check if data is available via Bluetooth
+        digitalWrite(ledPin, HIGH);
         dataIn = SerialBT.readString();  // Read the data as a string
         Serial.print("Received data: ");
         Serial.println(dataIn);
 
         // Process the received data
         processData(dataIn);
+    } else {  // If no data is available
+        digitalWrite(ledPin, LOW);
     }
 }
 
