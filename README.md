@@ -1,42 +1,39 @@
-# BluetoothESP32andAPP
+# ESP32 Bluetooth Controlled 6DOF Robotic Arm
 
-## Overview
-This project demonstrates the integration between an ESP32 microcontroller and an Android application using Bluetooth. The repository contains the necessary code for both the ESP32 and the Android app, enabling seamless communication between the two devices.
+This project allows you to control a 6 Degrees of Freedom (6DOF) robotic arm using an ESP32 microcontroller via Bluetooth. The robotic arm can be wirelessly controlled from a mobile application built with MIT App Inventor.
 
 ## Features
-- **ESP32 Bluetooth Server:** The ESP32 acts as a Bluetooth server, ready to connect with the Android app.
-- **Android Application:** The app sends data to the ESP32 via Bluetooth.
-- **PlatformIO Compatibility:** The ESP32 code is developed in PlatformIO but is also compatible with the Arduino IDE.
 
-## Prerequisites
-- **Hardware:** 
-  - ESP32 microcontroller
-  - Android device with Bluetooth capability
-- **Software:** 
-  - PlatformIO or Arduino IDE for ESP32
-  - Android Studio for Android app development
+- **Bluetooth Control**: Control the robotic arm wirelessly using Bluetooth.
+- **Servo Motor Control**: Move each of the 6 servos individually.
+- **Save and Replay**: Save positions of the servos and replay them in a loop.
+- **Pause and Resume**: Pause the replay of saved positions and resume when needed.
+- **Reset Functionality**: Reset the saved positions and stop the replay at any time.
 
-## Getting Started
+## Hardware Requirements
 
-### 1. ESP32 Setup
-1. Clone this repository and navigate to the `bluetooth_esp32` folder.
-2. Open the project in PlatformIO or Arduino IDE.
-3. Upload the code to your ESP32.
+- ESP32 Development Board (with classic bluetooth support)
+- 6, 180-degrees Servo Motors
+- Bluetooth-enabled android smartphone or tablet
+- Power Supply for Servo Motors
 
-### 2. Android Application Setup
-1. Navigate to the `android_app` directory.
-2. Open the project in Android Studio.
-3. Make sure Bluetooth permissions are properly set in the app's manifest file.
-4. Build and run the app on your Android device.
+## Software Requirements
 
-### 3. Connecting and Using
-1. Power on the ESP32 and open the Android app.
-2. Search for the ESP32 device via Bluetooth on your phone.
-3. Establish the connection and start sending data from the app to the ESP32.
+- [Arduino IDE](https://www.arduino.cc/en/software)
+- [MIT App Inventor](http://appinventor.mit.edu/)
 
-## Troubleshooting
-- **Connection Issues:** Double-check that Bluetooth permissions are enabled in the Android app.
-- **Data Transmission Problems:** Ensure the correct UUIDs are being used in both the Android app and the ESP32 code.
+## Circuit Diagram
 
-## Contributions
-Contributions are welcome! Feel free to submit pull requests or report issues to help improve the project.
+Connect the servo motors to the ESP32 as follows (but feel free to choose other PWM pins):
+
+| Servo | ESP32 Pin |
+|-------|-----------|
+| S1    | GPIO 12   |
+| S2    | GPIO 10   |
+| S3    | GPIO 25   |
+| S4    | GPIO 26   |
+| S5    | GPIO 33   |
+| S6    | GPIO 32   |
+
+Additionally, connect an LED to GPIO 2 for indicating the connection status. This LED is buildin in the ESP32-WROOM-32 dev-module that was used for this project.
+
