@@ -3,6 +3,7 @@
 
 // Number of servo motors
 const int numServos = 6;
+const int maxSteps = 50;  // Maximum number of steps that can be saved
 const int ledPin = 2;
 
 Servo servos[numServos];
@@ -13,9 +14,9 @@ BluetoothSerial SerialBT;
 // Data storage and control
 int servoPos[numServos];
 int servoPPos[numServos];
-int servoSP[numServos][50]; // For storing positions/steps
+int servoSP[numServos][maxSteps]; // For storing positions/steps
 int servoIndex = 0;        // Index for saving positions
-int speedDelay = 0;       // Delay for servo speed
+int speedDelay = 15;       // Default delay for servo speed
 String dataIn = "";
 
 // Function declarations
@@ -62,15 +63,13 @@ void initializeServos() {
 void processData(String data) {
     data.trim();
     
-    int startIndex = data.indexOf('(');
-    int endIndex = data.indexOf(')');
-    
-    while (startIndex != -1 && endIndex != -1) {
-        String command = data.substring(startIndex + 1, endIndex);  // Extract command within parentheses
+    if (data.startsWith("(") && data.endsWith(")")) {
+        // Command is in the form of (command parameters)
+        String command = data.substring(1, data.length() - 1);  // Extract command within parentheses
         handleCommand(command);
-        
-        startIndex = data.indexOf('(', endIndex);
-        endIndex = data.indexOf(')', startIndex);
+    } else {
+        // Command is a simple command like SAVE or RUN
+        handleCommand(data);
     }
 }
 
@@ -82,6 +81,7 @@ void handleCommand(String command) {
     int separatorIndex = command.indexOf(' ');
     
     if (separatorIndex != -1) {
+        // Command with parameters, e.g., s6 54.6
         String action = command.substring(0, separatorIndex);
         String parameters = command.substring(separatorIndex + 1);
         
@@ -95,33 +95,26 @@ void handleCommand(String command) {
             } else {
                 Serial.println("Invalid Servo Index or Angle: " + command);
             }
-        } else if (action.length() == 1 && isDigit(action[0])) {
-            // Handle commands without the 's' prefix
-            int servoIndex = action.toInt() - 1;  // Convert to 0-based index
-            float angle = parameters.toFloat();
-            
-            if (servoIndex >= 0 && servoIndex < numServos && angle >= 0 && angle <= 180) {
-                moveServo(servoIndex, angle);
-            } else {
-                Serial.println("Invalid Servo Index or Angle: " + command);
-            }
         } else if (action.startsWith("d")) {
             // Speed adjustment
             speedDelay = parameters.toInt();
             Serial.println("Speed set to: " + String(speedDelay));
-        } else if (action == "SAVE") {
+        } else {
+            Serial.println("Invalid Command Format: " + command);
+        }
+    } else {
+        // Simple command without parameters, e.g., SAVE or RUN
+        if (command.equalsIgnoreCase("SAVE")) {
             savePositions();
-        } else if (action == "RUN") {
+        } else if (command.equalsIgnoreCase("RUN")) {
             runSavedPositions();
-        } else if (action == "RESET") {
+        } else if (command.equalsIgnoreCase("RESET")) {
             resetPositions();
-        } else if (action == "PAUSE") {
+        } else if (command.equalsIgnoreCase("PAUSE")) {
             pauseRunning();
         } else {
             Serial.println("Invalid Command: " + command);
         }
-    } else {
-        Serial.println("Invalid Command Format: " + command);
     }
 }
 
@@ -146,32 +139,39 @@ void moveServo(int servoIndex, float angle) {
 }
 
 void savePositions() {
-    for (int i = 0; i < numServos; i++) {
-        servoSP[i][servoIndex] = servoPPos[i];
+    if (servoIndex < maxSteps) {  // Prevent exceeding array bounds
+        for (int i = 0; i < numServos; i++) {
+            servoSP[i][servoIndex] = servoPPos[i];
+        }
+        Serial.print("Saved Position at Index ");
+        Serial.println(servoIndex);
+        for (int i = 0; i < numServos; i++) {
+            Serial.print("Servo ");
+            Serial.print(i + 1);
+            Serial.print(": ");
+            Serial.println(servoSP[i][servoIndex]);
+        }
+        servoIndex++;
+    } else {
+        Serial.println("Error: Maximum number of saved positions reached.");
     }
-    servoIndex++;
-    Serial.println("Positions Saved. Index: " + String(servoIndex));
 }
 
 void runSavedPositions() {
-    while (dataIn != "RESET") {
-        for (int i = 0; i < servoIndex - 1; i++) {
-            for (int j = 0; j < numServos; j++) {
-                if (servoSP[j][i] > servoSP[j][i + 1]) {
-                    for (int k = servoSP[j][i]; k >= servoSP[j][i + 1]; k--) {
-                        servos[j].write(k);
-                        delay(speedDelay);
-                    }
-                } else if (servoSP[j][i] < servoSP[j][i + 1]) {
-                    for (int k = servoSP[j][i]; k <= servoSP[j][i + 1]; k++) {
-                        servos[j].write(k);
-                        delay(speedDelay);
-                    }
-                }
-            }
+    Serial.println("Running saved positions...");
+    for (int i = 0; i < servoIndex; i++) {
+        Serial.print("Step ");
+        Serial.println(i + 1);
+        for (int j = 0; j < numServos; j++) {
+            Serial.print("Running Servo ");
+            Serial.print(j + 1);
+            Serial.print(" to Position: ");
+            Serial.println(servoSP[j][i]);
+            servos[j].write(servoSP[j][i]);
         }
+        delay(1000);  // Optional: Add delay between steps to observe movement
     }
-    Serial.println("Running Saved Positions Stopped");
+    Serial.println("Completed running saved positions.");
 }
 
 void resetPositions() {
@@ -186,7 +186,7 @@ void pauseRunning() {
     while (dataIn != "RUN") {
         if (SerialBT.available()) {
             dataIn = SerialBT.readStringUntil('\n');
-            if (dataIn == "RESET") {
+            if (dataIn.equalsIgnoreCase("RESET")) {
                 resetPositions();
                 break;
             }
