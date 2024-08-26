@@ -28,6 +28,7 @@ void savePositions();
 void runSavedPositions();
 void resetPositions();
 void pauseRunning();
+int mapSpeedToDelay(int speed);
 
 void setup() {
     Serial.begin(115200);        // Start USB serial communication for debugging
@@ -97,8 +98,9 @@ void handleCommand(String command) {
             }
         } else if (action.startsWith("d")) {
             // Speed adjustment
-            speedDelay = parameters.toInt();
-            Serial.println("Speed set to: " + String(speedDelay));
+            int speed = parameters.toInt();
+            speedDelay = mapSpeedToDelay(speed);
+            Serial.println("Speed set to: " + String(speed) + " (Delay: " + String(speedDelay) + ")");
         } else {
             Serial.println("Invalid Command Format: " + command);
         }
@@ -193,4 +195,9 @@ void pauseRunning() {
         }
     }
     Serial.println("Paused. Waiting for RUN command.");
+}
+
+int mapSpeedToDelay(int speed) {
+    // Inverse mapping: 255 (speed) -> 0 (delay), 0 (speed) -> 255 (delay)
+    return 255 - speed;
 }
