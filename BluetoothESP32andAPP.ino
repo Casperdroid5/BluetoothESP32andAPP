@@ -34,11 +34,18 @@ void setup() {
     Serial.begin(115200);        // Start USB serial communication for debugging
     SerialBT.begin("ESP32_BT_6DOF-Arm");  // Start Bluetooth with the name ESP32_BT
 
+    // Wait for a Bluetooth connection
+    Serial.println("ESP32 Ready, waiting for device to pair...");
+    while (!SerialBT.hasClient()) {
+        delay(100);  // Check every 100ms
+    }
+    Serial.println("Device paired successfully!");
+    digitalWrite(ledPin, HIGH);
+
     // Attach servos to their pins and set initial positions
     initializeServos();
     
     pinMode(ledPin, OUTPUT);  // Set LED pin as output
-    Serial.println("ESP32 Ready");
 }
 
 void loop() {
