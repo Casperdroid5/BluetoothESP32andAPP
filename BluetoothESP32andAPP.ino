@@ -35,7 +35,7 @@ void setup() {
     SerialBT.begin("ESP32_BT_6DOF-Arm");  // Start Bluetooth with the name ESP32_BT
 
     // Wait for a Bluetooth connection
-    Serial.println("ESP32 Ready, waiting for device to pair...");
+    Serial.println("Arm Ready, waiting for device to pair...");
     while (!SerialBT.hasClient()) {
         delay(100);  // Check every 100ms
     }
@@ -71,13 +71,16 @@ void initializeServos() {
 void processData(String data) {
     data.trim();
     
-    if (data.startsWith("(") && data.endsWith(")")) {
-        // Command is in the form of (command parameters)
-        String command = data.substring(1, data.length() - 1);  // Extract command within parentheses
-        handleCommand(command);
-    } else {
-        // Command is a simple command like SAVE or RUN
-        handleCommand(data);
+    int startIndex = 0;
+    while (startIndex != -1) {
+        int endIndex = data.indexOf(')', startIndex); // Find the closing parenthesis
+        if (endIndex != -1) {
+            String command = data.substring(startIndex + 1, endIndex); // Extract command within parentheses
+            handleCommand(command);
+            startIndex = data.indexOf('(', endIndex); // Move to the next command
+        } else {
+            startIndex = -1; // No more commands
+        }
     }
 }
 
@@ -194,7 +197,7 @@ void resetPositions() {
 void pauseRunning() {
     while (dataIn != "RUN") {
         if (SerialBT.available()) {
-            dataIn = SerialBT.readStringUntil('\n');
+            dataIn = SerialBT.readString();
             if (dataIn.equalsIgnoreCase("RESET")) {
                 resetPositions();
                 break;
