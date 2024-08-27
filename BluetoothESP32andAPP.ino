@@ -19,6 +19,10 @@ int servoIndex = 0;        // Index for saving positions
 int speedDelay = 0;       // Default delay for servo speed
 String dataIn = "";
 
+bool pauseRunning = false;
+bool runningPositions = false;  // Track if we are currently running saved positions
+int currentStepIndex = 0;       // Track the current step in runSavedPositions
+
 // Function declarations
 void initializeServos();
 void processData(String data);
@@ -27,39 +31,29 @@ void moveServo(int servoIndex, float angle);
 void savePositions();
 void runSavedPositions();
 void resetPositions();
+void checkForCommands();
 int mapSpeedToDelay(int speed);
-bool pauseRunning = false;
 
 void setup() {
     Serial.begin(115200);        // Start USB serial communication for debugging
     SerialBT.begin("ESP32_BT_6DOF-Arm");  // Start Bluetooth with the name ESP32_BT
 
-    // Wait for a Bluetooth connection
     Serial.println("Arm Ready, waiting for device to pair...");
     while (!SerialBT.hasClient()) {
-        delay(50);  // Check every 10ms
+        delay(50);  // Check every 50ms
     }
     Serial.println("Device paired successfully!");
     pinMode(ledPin, OUTPUT);  // Set LED pin as output
 
-
     // Attach servos to their pins and set initial positions
     initializeServos();
-    
-
 }
 
 void loop() {
-    if (SerialBT.available()) {  // Check if data is available via Bluetooth
-        digitalWrite(ledPin, HIGH);
-        dataIn = SerialBT.readString();  // Read the data as a string
-        Serial.print("Received data: ");
-        Serial.println(dataIn);
+    checkForCommands();  // Continuously check for incoming commands
 
-        // Process the received data
-        processData(dataIn);
-    } else {  // If no data is available
-        digitalWrite(ledPin, LOW);
+    if (runningPositions && !pauseRunning) {
+        runSavedPositions();
     }
 }
 
@@ -72,46 +66,51 @@ void initializeServos() {
     delay(250);  // Wait to ensure all servos move to their initial position
 }
 
+void checkForCommands() {
+    if (SerialBT.available()) {
+        dataIn = SerialBT.readString();
+        Serial.print("Received data: ");
+        Serial.println(dataIn);
+        processData(dataIn);
+    }
+}
+
 void processData(String data) {
     data.trim();
-    
     int startIndex = 0;
+
     while (startIndex != -1) {
-        int endIndex = data.indexOf(')', startIndex); // Find the closing parenthesis
+        int endIndex = data.indexOf(')', startIndex);
         if (endIndex != -1) {
-            String command = data.substring(startIndex + 1, endIndex); // Extract command within parentheses
+            String command = data.substring(startIndex + 1, endIndex);
             handleCommand(command);
-            startIndex = data.indexOf('(', endIndex); // Move to the next command
+            startIndex = data.indexOf('(', endIndex);
         } else {
-            startIndex = -1; // No more commands
+            startIndex = -1;
         }
     }
 }
 
 void handleCommand(String command) {
     command.trim();
-    
     Serial.println("Handling Command: " + command);
-    
+
     int separatorIndex = command.indexOf(' ');
-    
+
     if (separatorIndex != -1) {
-        // Command with parameters, e.g., s6 54.6
         String action = command.substring(0, separatorIndex);
         String parameters = command.substring(separatorIndex + 1);
-        
+
         if (action.startsWith("s")) {
-            // Servo movement command
-            int servoIndex = action.substring(1).toInt() - 1;  // Convert to 0-based index
+            int servoIndex = action.substring(1).toInt() - 1;
             float angle = parameters.toFloat();
-            
+
             if (servoIndex >= 0 && servoIndex < numServos && angle >= 0 && angle <= 180) {
                 moveServo(servoIndex, angle);
             } else {
                 Serial.println("Invalid Servo Index or Angle: " + command);
             }
         } else if (action.startsWith("d")) {
-            // Speed adjustment
             int speed = parameters.toInt();
             speedDelay = mapSpeedToDelay(speed);
             Serial.println("Speed set to: " + String(speed) + " (Delay: " + String(speedDelay) + ")");
@@ -119,16 +118,18 @@ void handleCommand(String command) {
             Serial.println("Invalid Command Format: " + command);
         }
     } else {
-        // Simple command without parameters, e.g., SAVE or RUN
         if (command.equalsIgnoreCase("SAVE")) {
             savePositions();
         } else if (command.equalsIgnoreCase("RUN")) {
-            runSavedPositions();
+            pauseRunning = false;
+            runningPositions = true;
+            currentStepIndex = 0;  // Reset to the beginning of the sequence
         } else if (command.equalsIgnoreCase("RESET")) {
             resetPositions();
             pauseRunning = false;
+            runningPositions = false;
         } else if (command.equalsIgnoreCase("PAUSE")) {
-            //pauseRunning = !pauseRunning; // Toggle the pauseRunning state
+            pauseRunning = true;  // Toggle the pause state
         } else {
             Serial.println("Invalid Command: " + command);
         }
@@ -137,17 +138,15 @@ void handleCommand(String command) {
 
 void moveServo(int servoIndex, float angle) {
     if (servoIndex >= 0 && servoIndex < numServos) {
-        if (servoPPos[servoIndex] > angle) {
-            for (float j = servoPPos[servoIndex]; j >= angle; j--) {
-                servos[servoIndex].write(j);
-                delay(speedDelay);
-            }
-        } else if (servoPPos[servoIndex] < angle) {
-            for (float j = servoPPos[servoIndex]; j <= angle; j++) {
-                servos[servoIndex].write(j);
-                delay(speedDelay);
-            }
+        int start = servoPPos[servoIndex];
+        int end = angle;
+
+        for (int pos = start; pos != end; pos += (start < end ? 1 : -1)) {
+            servos[servoIndex].write(pos);
+            delay(speedDelay);
+            checkForCommands();  // Continuously check for commands during movement
         }
+
         servoPPos[servoIndex] = angle;
         Serial.println("Servo " + String(servoIndex + 1) + " Angle: " + String(angle));
     } else {
@@ -156,18 +155,11 @@ void moveServo(int servoIndex, float angle) {
 }
 
 void savePositions() {
-    if (servoIndex < maxSteps) {  // Prevent exceeding array bounds
+    if (servoIndex < maxSteps) {
         for (int i = 0; i < numServos; i++) {
             servoSP[i][servoIndex] = servoPPos[i];
         }
-        Serial.print("Saved Position at Index ");
-        Serial.println(servoIndex);
-        for (int i = 0; i < numServos; i++) {
-            Serial.print("Servo ");
-            Serial.print(i + 1);
-            Serial.print(": ");
-            Serial.println(servoSP[i][servoIndex]);
-        }
+        Serial.println("Saved Position at Index " + String(servoIndex));
         servoIndex++;
     } else {
         Serial.println("Error: Maximum number of saved positions reached.");
@@ -177,77 +169,23 @@ void savePositions() {
 void runSavedPositions() {
     Serial.println("Running saved positions...");
 
-    int currentIndex = 0; // Track the current step index
+    for (int i = currentStepIndex; i < servoIndex; i++) {
+        for (int j = 0; j < numServos; j++) {
+            checkForCommands();  // Check for new commands during execution
 
-    while (true) { // Infinite loop
-        for (int i = currentIndex; i < servoIndex; i++) {
-            for (int j = 0; j < numServos; j++) {
-                // Check for PAUSE or RESET command before moving each servo
-                if (SerialBT.available()) {
-                    String incomingCommand = SerialBT.readString();
-                    incomingCommand.trim();
-                    Serial.println("Received command: " + incomingCommand);
-
-                    if (incomingCommand.equalsIgnoreCase("(PAUSE)")) {
-                        pauseRunning = true;
-                        Serial.println("Execution paused.");
-                    } else if (incomingCommand.equalsIgnoreCase("(RESET)")) {
-                        resetPositions();
-                        Serial.println("Execution reset.");
-                        return;  // Exit the function to stop further execution
-                    }
-                }
-
-                // If pause is triggered, stop execution
-                while (pauseRunning) {
-                    if (SerialBT.available()) {
-                        String incomingCommand = SerialBT.readString();
-                        incomingCommand.trim();
-                        Serial.println("Received during pause: " + incomingCommand);
-
-                        if (incomingCommand.equalsIgnoreCase("(RUN)")) {
-                            pauseRunning = false;
-                            Serial.println("Resuming execution.");
-                        } else if (incomingCommand.equalsIgnoreCase("(RESET)")) {
-                            resetPositions();
-                            Serial.println("Execution reset.");
-                            return;  // Exit the function to stop further execution
-                        }
-                    }
-                    delay(100);  // Small delay to prevent tight loop
-                }
-
-                // Move the servo if not paused
-                if (!pauseRunning) {
-                    Serial.print("Running Servo ");
-                    Serial.print(j + 1);
-                    Serial.print(" to Position: ");
-                    Serial.println(servoSP[j][i]);
-                    servos[j].write(servoSP[j][i]);
-                    delay(speedDelay);
-                }
+            if (!pauseRunning) {
+                // Use the moveServo function to move the servo to the saved position
+                moveServo(j, servoSP[j][i]);
+            } else {
+                currentStepIndex = i;
+                return;  // Pause execution and return to loop
             }
-
-            // Check again after all servos have been moved in the step
-            if (pauseRunning || !SerialBT.hasClient()) {
-                currentIndex = i;  // Save current position before pausing
-                break;  // Exit the loop if paused or Bluetooth connection lost
-            }
-
-            delay(1000);  // Optional: Add delay between steps to observe movement
         }
-
-        // Reset the currentIndex to 0 to repeat the sequence indefinitely
-        currentIndex = 0;
-
-        // Check for reset after completing one cycle
-        if (pauseRunning || !SerialBT.hasClient()) {
-            break;  // Exit the loop if paused or Bluetooth connection lost
-        }
+        delay(1000);  // Optional: Delay between steps
     }
+
+    currentStepIndex = 0;  // Reset to allow repeating the sequence
 }
-
-
 
 
 void resetPositions() {
@@ -258,8 +196,6 @@ void resetPositions() {
     Serial.println("Positions Reset");
 }
 
-
 int mapSpeedToDelay(int speed) {
-    // Inverse mapping: 220 (speed) -> 0 (delay), 0 (speed) -> 20 (delay), maximum of 20 delay
     return 20 - speed;
 }
