@@ -260,6 +260,6 @@ void resetPositions() {
 
 
 int mapSpeedToDelay(int speed) {
-    // Inverse mapping: 255 (speed) -> 0 (delay), 0 (speed) -> 255 (delay)
-    return 255 - speed;
+    // Inverse mapping: 220 (speed) -> 0 (delay), 0 (speed) -> 20 (delay), maximum of 20 delay
+    return 20 - speed;
 }
