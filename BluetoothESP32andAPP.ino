@@ -44,13 +44,24 @@ void setup() {
     }
     Serial.println("Device paired successfully!");
     pinMode(ledPin, OUTPUT);  // Set LED pin as output
-
+    digitalWrite(ledPin, HIGH);  // Turn on LED when reconnected
     // Attach servos to their pins and set initial positions
     initializeServos();
 }
 
 void loop() {
     checkForCommands();  // Continuously check for incoming commands
+
+    // Check if Bluetooth connection is lost
+    if (!SerialBT.hasClient()) {
+        digitalWrite(ledPin, LOW);  // Turn off LED when disconnected
+        Serial.println("Device disconnected!");
+        while (!SerialBT.hasClient()) {
+            delay(50);  // Wait until a device connects again
+        }
+        Serial.println("Device reconnected!");
+        digitalWrite(ledPin, HIGH);  // Turn on LED when reconnected
+    }
 
     if (runningPositions && !pauseRunning) {
         runSavedPositions();
