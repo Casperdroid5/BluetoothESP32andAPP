@@ -6,6 +6,7 @@ This project allows you to control a 6 Degrees of Freedom (6DOF) robotic arm usi
 
 - **Bluetooth Control**: Control the robotic arm wirelessly using Bluetooth.
 - **Servo Motor Control**: Move each of the 6 servos individually.
+- **Servo Motor Speed Control**: Control the speed of the motors at any time.
 - **Save and Replay**: Save positions of the servos and replay them in a loop.
 - **Pause and Resume**: Pause the replay of saved positions and resume when needed.
 - **Reset Functionality**: Reset the saved positions and stop the replay at any time.
