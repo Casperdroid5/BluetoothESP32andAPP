@@ -7,7 +7,8 @@ const int maxSteps = 50;  // Maximum number of steps that can be saved
 const int ledPin = 2;
 
 Servo servos[numServos];
-const int servoPins[numServos] = {12, 10, 25, 26, 33, 32};
+const int servoPins[numServos] = {13, 12, 14, 18, 19, 5}; // waste = s1, shoulder = s2, elbow = s3, wrist roll = s4, wrist pitch =s5, grip = s6
+
 
 BluetoothSerial SerialBT;
 
@@ -36,7 +37,7 @@ int mapSpeedToDelay(int speed);
 
 void setup() {
     Serial.begin(115200);        // Start USB serial communication for debugging
-    SerialBT.begin("ESP32_BT_6DOF-Arm");  // Start Bluetooth with the name ESP32_BT
+    SerialBT.begin("6DOF-Robot-Arm");  // Start Bluetooth with the name ESP32_BT
 
     Serial.println("Arm Ready, waiting for device to pair...");
     while (!SerialBT.hasClient()) {
@@ -76,7 +77,7 @@ void initializeServos() {
     }
     delay(250);  // Wait to ensure all servos move to their initial position
 }
-
+ 
 void checkForCommands() {
     if (SerialBT.available()) {
         dataIn = SerialBT.readString();
