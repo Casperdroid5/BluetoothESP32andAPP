@@ -1,14 +1,14 @@
 #include <ESP32Servo.h>
 #include "BluetoothSerial.h"
 
-// Number of servo motors
-const int numServos = 6;
-const int maxSteps = 50;  // Maximum number of steps that can be saved
-const int ledPin = 2;
 
+const int maxSteps = 50;  // Maximum number of steps that can be saved with app
+const int BluetoothIndicator = 2; // LED for bluetooth connection status
+
+const int numServos = 6;
 Servo servos[numServos];
 const int servoPins[numServos] = {13, 12, 14, 18, 19, 5}; // waste = s1, shoulder = s2, elbow = s3, wrist roll = s4, wrist pitch =s5, grip = s6
-
+bool initservos = false;
 
 BluetoothSerial SerialBT;
 
@@ -44,8 +44,8 @@ void setup() {
         delay(50);  // Check every 50ms
     }
     Serial.println("Device paired successfully!");
-    pinMode(ledPin, OUTPUT);  // Set LED pin as output
-    digitalWrite(ledPin, HIGH);  // Turn on LED when reconnected
+    pinMode(BluetoothIndicator, OUTPUT);  // Set LED pin as output
+    digitalWrite(BluetoothIndicator, HIGH);  // Turn on LED when reconnected
     // Attach servos to their pins and set initial positions
     initializeServos();
 }
@@ -55,14 +55,20 @@ void loop() {
 
     // Check if Bluetooth connection is lost
     if (!SerialBT.hasClient()) {
-        digitalWrite(ledPin, LOW);  // Turn off LED when disconnected
+        digitalWrite(BluetoothIndicator, LOW);  // Turn off LED when disconnected
         Serial.println("Device disconnected!");
+        initservos = false;
         while (!SerialBT.hasClient()) {
             delay(50);  // Wait until a device connects again
         }
         Serial.println("Device reconnected!");
-        digitalWrite(ledPin, HIGH);  // Turn on LED when reconnected
+        digitalWrite(BluetoothIndicator, HIGH);  // Turn on LED when reconnected
     }
+    if (initservos == false){
+          initializeServos();
+          initservos = true;
+    }
+    
 
     if (runningPositions && !pauseRunning) {
         runSavedPositions();
@@ -70,12 +76,15 @@ void loop() {
 }
 
 void initializeServos() {
+    // Define the initial positions for each servo
+    int initialPositions[numServos] = {90, 45, 0, 100, 90, 35};  // Adjust these values to your preferred initial positions
+
     for (int i = 0; i < numServos; i++) {
         servos[i].attach(servoPins[i]);
-        servoPPos[i] = 90;  // Set initial position to 90 degrees
-        servos[i].write(servoPPos[i]);
+        servoPPos[i] = initialPositions[i];  // Set each servo to its corresponding initial position
+        servos[i].write(servoPPos[i]);       // Move the servo to the initial position
     }
-    delay(250);  // Wait to ensure all servos move to their initial position
+    delay(250);  // Wait to ensure all servos move to their initial positions
 }
  
 void checkForCommands() {
