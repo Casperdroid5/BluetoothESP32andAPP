@@ -51,7 +51,7 @@ void setup() {
     Serial.println("Device paired successfully!");
     pinMode(BluetoothIndicator, OUTPUT);  // Set LED pin as output
     digitalWrite(BluetoothIndicator, HIGH);  // Turn on LED when reconnected
-    int initialSpeed = 10;  // reset speed after disconnect
+    int initialSpeed = 15; // initial speed
     speedDelay = mapSpeedToDelay(initialSpeed); // set speed
 
     // Attach servos to their pins and set initial positions
@@ -80,7 +80,7 @@ void loop() {
         initservos = true;
 
         // Set default speed to 50% at startup
-        int initialSpeed = 15;  // Corresponds to 50% speed in mapSpeedToDelay()
+        int initialSpeed = 15;  // Corresponds to 75% speed in mapSpeedToDelay()
         speedDelay = mapSpeedToDelay(initialSpeed);  // Set the initial speed delay
     }
 
