@@ -1,12 +1,10 @@
 #include <ESP32Servo.h>
 #include "BluetoothSerial.h"
 
+
 const int maxSteps = 50;  // Maximum number of steps that can be saved with app
 const int BluetoothIndicator = 2; // LED for bluetooth connection status
 
-
-// Global hysteresis value (in degrees)
-const float hysteresis = 8.0;  // Hysteresis value in degrees
 const int numServos = 6;
 Servo servos[numServos];
 const int servoPins[numServos] = {13, 12, 14, 18, 19, 5}; // waste = s1, shoulder = s2, elbow = s3, wrist roll = s4, wrist pitch =s5, grip = s6
@@ -26,8 +24,6 @@ bool pauseRunning = false;
 bool runningPositions = false;  // Track if we are currently running saved positions
 int currentStepIndex = 0;       // Track the current step in runSavedPositions
 
-
-
 // Function declarations
 void initializeServos();
 void processData(String data);
@@ -41,7 +37,6 @@ int mapSpeedToDelay(int speed);
 
 void setup() {
     Serial.begin(115200);        // Start USB serial communication for debugging
-    delay(100);
     SerialBT.begin("6DOF-Robot-Arm");  // Start Bluetooth with the name ESP32_BT
 
     Serial.println("Arm Ready, waiting for device to pair...");
@@ -51,12 +46,15 @@ void setup() {
     Serial.println("Device paired successfully!");
     pinMode(BluetoothIndicator, OUTPUT);  // Set LED pin as output
     digitalWrite(BluetoothIndicator, HIGH);  // Turn on LED when reconnected
-    int initialSpeed = 15; // initial speed
-    speedDelay = mapSpeedToDelay(initialSpeed); // set speed
+    
+    // Set default speed to 50% at startup
+    int initialSpeed = 10;  // Corresponds to 50% speed in mapSpeedToDelay()
+    speedDelay = mapSpeedToDelay(initialSpeed);  // Set the initial speed delay
 
     // Attach servos to their pins and set initial positions
     initializeServos();
 }
+
 
 void loop() {
     checkForCommands();  // Continuously check for incoming commands
@@ -64,25 +62,22 @@ void loop() {
     // Check if Bluetooth connection is lost
     if (!SerialBT.hasClient()) {
         digitalWrite(BluetoothIndicator, LOW);  // Turn off LED when disconnected
-        initservos = false;
-        int initialSpeed = 15;  // reset speed after disconnect
-        speedDelay = mapSpeedToDelay(initialSpeed); // set speed
-        initializeServos();
         Serial.println("Device disconnected!");
+        initservos = false;
         while (!SerialBT.hasClient()) {
             delay(50);  // Wait until a device connects again
         }
         Serial.println("Device reconnected!");
         digitalWrite(BluetoothIndicator, HIGH);  // Turn on LED when reconnected
     }
-    if (initservos == false) {
-        initializeServos();
-        initservos = true;
-
-        // Set default speed to 50% at startup
-        int initialSpeed = 15;  // Corresponds to 75% speed in mapSpeedToDelay()
-        speedDelay = mapSpeedToDelay(initialSpeed);  // Set the initial speed delay
+    if (initservos == false){
+          initializeServos();
+          initservos = true;
+              // Set default speed to 50% at startup
+    int initialSpeed = 10;  // Corresponds to 50% speed in mapSpeedToDelay()
+    speedDelay = mapSpeedToDelay(initialSpeed);  // Set the initial speed delay
     }
+    
 
     if (runningPositions && !pauseRunning) {
         runSavedPositions();
@@ -100,7 +95,7 @@ void initializeServos() {
     }
     delay(250);  // Wait to ensure all servos move to their initial positions
 }
-
+ 
 void checkForCommands() {
     if (SerialBT.available()) {
         dataIn = SerialBT.readString();
@@ -176,18 +171,14 @@ void moveServo(int servoIndex, float angle) {
         int start = servoPPos[servoIndex];
         int end = angle;
 
-        // Check if the change is greater than the hysteresis value
-        if (abs(end - start) > hysteresis) {
-            for (int pos = start; pos != end; pos += (start < end ? 1 : -1)) {
-                servos[servoIndex].write(pos);
-                delay(speedDelay);
-                checkForCommands();  // Continuously check for commands during movement
-            }
-            servoPPos[servoIndex] = angle;
-            Serial.println("Servo " + String(servoIndex + 1) + " Angle: " + String(angle));
-        } else {
-            Serial.println("Movement ignored due to hysteresis.");
+        for (int pos = start; pos != end; pos += (start < end ? 1 : -1)) {
+            servos[servoIndex].write(pos);
+            delay(speedDelay);
+            checkForCommands();  // Continuously check for commands during movement
         }
+
+        servoPPos[servoIndex] = angle;
+        Serial.println("Servo " + String(servoIndex + 1) + " Angle: " + String(angle));
     } else {
         Serial.println("Invalid Servo Index: " + String(servoIndex + 1));
     }
@@ -225,6 +216,7 @@ void runSavedPositions() {
 
     currentStepIndex = 0;  // Reset to allow repeating the sequence
 }
+
 
 void resetPositions() {
     for (int i = 0; i < numServos; i++) {
